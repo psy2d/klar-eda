@@ -25,7 +25,7 @@ class CSVVisualize:
         self.numerical_column_list = list(self.get_filtered_dataframe(include_type=np.number))
         temp_col_list = [num_col for num_col in self.numerical_column_list if self.df[num_col].nunique() < NUNIQUE_THRESHOLD]
         self.continuous_column_list = [x for x in self.numerical_column_list if x not in temp_col_list]
-        self.non_continous_col_list = self.categorical_column_list + temp_col_list
+        self.non_continuous_col_list = self.categorical_column_list + temp_col_list
     
     def save_or_show(self, plot, plot_type, file_name, save=True, show=False):
         if save:
@@ -121,12 +121,10 @@ class CSVVisualize:
 
     def plot_horizontal_box_plot(self, save = True, show = False):
         new_df = self.df
-        cat_cols = self.categorical_column_list
+        cat_cols = self.non_continuous_col_list
         num_cols = self.numerical_column_list
-        y = [num_col for num_col in num_cols if new_df[num_col].nunique() < NUNIQUE_THRESHOLD]
-        cat_cols = cat_cols + y
-        number_cols = [x for x in num_cols if x not in y]
-        for x_col in number_cols:
+        cont_cols = self.continuous_column_list
+        for x_col in cont_cols:
             sns_plot_1 = sns.boxplot(x = x_col, data = self.df)
             self.save_or_show(sns_plot_1.figure, 'box_plot', str(x_col), save=save, show=show)
             for y_col in cat_cols:
@@ -159,15 +157,11 @@ class CSVVisualize:
 
 
     def plot_scatter_plot_with_categorical(self, save = True, show = False):
-        cat_cols = self.categorical_column_list
-        num_cols = self.numerical_column_list
-        y = [num_col for num_col in num_cols if self.df[num_col].nunique() < NUNIQUE_THRESHOLD]
-        cat_cols = cat_cols + y
-        num_cols = [x for x in num_cols if x not in y]
+        cat_cols = self.non_continuous_col_list
+        num_cols = self.continuous_column_list
         for cat_col in cat_cols:
             for num_col in num_cols:
                 sns_plot = sns.swarmplot(x=cat_col, y=num_col, data=self.df)
-                # """hue="species", palette=["r", "c", "y"]"""
                 self.save_or_show(sns_plot.figure, 'scatter_plot_categorical', str(cat_col)+'_'+str(num_col), save=save, show=show)
 
     def plot_scatter_plot_matrix(self, hue_col_list=[], save=True, show=False):
@@ -195,7 +189,7 @@ class CSVVisualize:
 
 
     def plot_pie_chart(self,x = None, y = None, save = True, show = False, threshold = 10):
-        df_new = self.df[self.non_continous_col_list]
+        df_new = self.df[self.non_continuous_col_list]
         for col in df_new.columns:
             try:
                 val_series = df_new[col].value_counts()
@@ -220,11 +214,11 @@ class CSVVisualize:
          xs = []
          for col in self.col_names:
              if self.df[col].shape[0] == self.df[col].unique().shape[0]:
-		               xs.append(col)
+                       xs.append(col)
          for x in xs:
              res = []
              for i,j in zip(self.df[x], self.df.iloc[:,-1]):
-	             res.append([i,j])
+                 res.append([i,j])
              res.sort()
              x1 = [x1[0] for x1 in res]
              y1 = [y1[1] for y1 in res]
@@ -263,10 +257,10 @@ class CSVVisualize:
                 self.save_or_show(plt, 'stem', str(x)+'_'+str(y), save=save, show=show)
             except Exception as e:
                 print('Cannot plot stem plot for column pair',col_pair, e)
-	
-	def plot_kde(self, save=True, show=False):
+    
+    def plot_kde(self, save=True, show=False):
         for i in range(len(self.col_names)):
-        	for j in range(i+1,len(self.col_names)):
+            for j in range(i+1,len(self.col_names)):
                  try:
                     ax = sns.kdeplot((self.df[self.col_names[i]]), self.df[(self.col_names[j])])
                     self.save_or_show(ax.figure, 'KDE Chart', self.col_names[i] + "_"+ self.col_names[j],save=save, show=show)
