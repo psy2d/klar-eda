@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from constants import VIZ_ROOT, NUNIQUE_THRESHOLD
 
 class CSVVisualize:
-    def __init__(self, input, target_col = None, index_column = None, exclude_columns = []):
+
+    def __init__(self, input):
         if type(input)==str:
             self.df = pd.read_csv(input, index_col = index_column)
         else:
