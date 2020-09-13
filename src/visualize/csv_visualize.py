@@ -8,19 +8,24 @@ import matplotlib.pyplot as plt
 from constants import VIZ_ROOT, NUNIQUE_THRESHOLD
 
 class CSVVisualize:
-    def __init__(self, input):
+    def __init__(self, input, target_col = None, index_column = None, exclude_columns = []):
         if type(input)==str:
-            self.df = pd.read_csv(input, index_col = 0)
+            self.df = pd.read_csv(input, index_col = index_column)
         else:
             self.df = input
+        self.df.drop(exclude_columns,inplace=True)
         self.col_names = list(self.df.columns)
+        self.target_column = self.col_names[-1] if target_col == None else target_col
+        self.df.dropna(subset=[self.target_column], inplace=True)
         self.num_cols = len(self.col_names)
         self.output_format = 'png'
         self.categorical_data_types = ['object','str']
         self.categorical_column_list = []
-        self.target_column = self.col_names[-1]
         self.populate_categorical_column_list()
         self.numerical_column_list = list(self.get_filtered_dataframe(include_type=np.number))
+        temp_col_list = [num_col for num_col in self.numerical_column_list if self.df[num_col].nunique() < NUNIQUE_THRESHOLD]
+        self.continuous_column_list = [x for x in self.numerical_column_list if x not in temp_col_list]
+        self.non_continous_col_list = self.categorical_column_list + temp_col_list
     
     def save_or_show(self, plot, plot_type, file_name, save=True, show=False):
         if save:
@@ -76,10 +81,14 @@ class CSVVisualize:
         return result_paired_columns
 
     def plot_correlation_map(self, save=True, show=False):
-        df = self.get_filtered_dataframe(include_type=np.number)
-        corr_matrix = df.corr()
-        plot = sns.heatmap(corr_matrix, annot=True)
-        self.save_or_show(plot.figure, 'correlation_map', 'correlation_map', save=save, show=show)
+        df_num = self.get_filtered_dataframe(include_type=np.number)
+        df_cont = self.df[self.continuous_column_list]
+        corr_matrix_num = df_num.corr()
+        plot = sns.heatmap(corr_matrix_num, annot=True)
+        self.save_or_show(plot.figure, 'correlation_map', 'corr_map_all_numerical_cols', save=save, show=show)
+        corr_matrix_cont = df_cont.corr()
+        plot = sns.heatmap(corr_matrix_cont, annot=True)
+        self.save_or_show(plot.figure, 'correlation_map', 'corr_map_continuous_cols', save=save, show=show)
 
     def get_numerical_column_list(self):
         pass
@@ -94,7 +103,6 @@ class CSVVisualize:
 
         df_new = self.get_filtered_dataframe()
 
-        #new_columns = list(df_new.columns)
         col_pairs = self.get_correlated_columns(min_absolute_coeff=0.5)
 
         for col_pair in col_pairs:
@@ -112,14 +120,19 @@ class CSVVisualize:
         pass
 
     def plot_horizontal_box_plot(self, save = True, show = False):
-        #df_num = self.get_filtered_dataframe(include_type=[np.number])
-        for x_col in self.numerical_column_list:
+        new_df = self.df
+        cat_cols = self.categorical_column_list
+        num_cols = self.numerical_column_list
+        y = [num_col for num_col in num_cols if new_df[num_col].nunique() < NUNIQUE_THRESHOLD]
+        cat_cols = cat_cols + y
+        number_cols = [x for x in num_cols if x not in y]
+        for x_col in number_cols:
             sns_plot_1 = sns.boxplot(x = x_col, data = self.df)
             self.save_or_show(sns_plot_1.figure, 'box_plot', str(x_col), save=save, show=show)
-            for y_col in self.categorical_column_list:
-                #ENHANCEMENT
-                #need to check if y_col belongs to numeric, either encode it to non-numeric (preferred) or remove and plot only non-numeric categorical values
-                sns_plot = sns.boxplot(x = x_col, y = y_col, data = self.df)
+            for y_col in cat_cols:
+                if y_col in num_cols:
+                    new_df[y_col] = new_df[y_col].astype('category')
+                sns_plot = sns.boxplot(x = x_col, y = y_col, data = new_df)
                 self.save_or_show(sns_plot.figure, 'box_plot', str(x_col)+'_'+str(y_col), save=save, show=show)
 
     def plot_pdp(self):
@@ -148,10 +161,9 @@ class CSVVisualize:
     def plot_scatter_plot_with_categorical(self, save = True, show = False):
         cat_cols = self.categorical_column_list
         num_cols = self.numerical_column_list
-        x = [num_col for num_col in num_cols if self.df[num_col].nunique() >= NUNIQUE_THRESHOLD]
         y = [num_col for num_col in num_cols if self.df[num_col].nunique() < NUNIQUE_THRESHOLD]
         cat_cols = cat_cols + y
-        num_cols = x
+        num_cols = [x for x in num_cols if x not in y]
         for cat_col in cat_cols:
             for num_col in num_cols:
                 sns_plot = sns.swarmplot(x=cat_col, y=num_col, data=self.df)
@@ -183,24 +195,12 @@ class CSVVisualize:
 
 
     def plot_pie_chart(self,x = None, y = None, save = True, show = False, threshold = 10):
-
-        df_new = self.get_filtered_dataframe(exclude_type=[np.number])
-
+        df_new = self.df[self.non_continous_col_list]
         for col in df_new.columns:
             try:
-
-                #size_list = []
-                #labels = []
-
                 val_series = df_new[col].value_counts()
-
                 val_name_list = list(val_series.keys())
-
-                if len(val_name_list) > threshold: #Skipping for number of values greater than threshold
-                    continue
-
                 val_count_list = [ val_series[val_name] for val_name in val_name_list ]
-
                 plot = plt.pie(val_count_list, labels=val_name_list)
                 self.save_or_show(plt, 'piechart', str(col), save=save, show=show)
             except Exception as e:
