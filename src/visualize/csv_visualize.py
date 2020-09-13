@@ -247,11 +247,12 @@ class CSVVisualize:
                 print('Cannot plot stem plot for column pair',col_pair, e)
     
     def plot_kde(self, save=True, show=False):
-        for i in range(len(self.col_names)):
-            for j in range(i+1,len(self.col_names)):
+        col_names = self.numerical_column_list
+        for i in range(len(col_names)):
+            for j in range(i+1,len(col_names)):
                  try:
-                    ax = sns.kdeplot((self.df[self.col_names[i]]), self.df[(self.col_names[j])])
-                    self.save_or_show(ax.figure, 'KDE Chart', self.col_names[i] + "_"+ self.col_names[j],save=save, show=show)
+                    ax = sns.kdeplot((self.df[col_names[i]]), self.df[(col_names[j])])
+                    self.save_or_show(ax.figure, 'KDE Chart', col_names[i] + "_"+ col_names[j],save=save, show=show)
                  except Exception as e:
                     print('Cannot plot kde',e)
                     
